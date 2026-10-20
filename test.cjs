@@ -1,6 +1,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const context=vm.createContext({console,crypto:require('node:crypto').webcrypto,localStorage:{getItem:()=>null},document:{addEventListener(){}},window:{addEventListener(){}},setTimeout,clearTimeout});
-vm.runInContext(fs.readFileSync('app.js','utf8').replace('render();intro();if(session)queueSync(true);',''),context);
+vm.runInContext(fs.readFileSync('classroom.js','utf8'),context);
+vm.runInContext(fs.readFileSync('app.js','utf8').replace(/\nboot\(\);\s*$/,''),context);
 const run=s=>JSON.parse(JSON.stringify(vm.runInContext(s,context)));
 assert.deepEqual(run("parseWords('focus | 专注 | Stay focused.\\nlearn | 学习')"),[{word:'focus',meaning:'专注',example:'Stay focused.'},{word:'learn',meaning:'学习',example:''}]);
 assert.deepEqual(run("segments('春风春风吹过山谷',['春','春风','山谷'])"),[{text:'春风',mark:true},{text:'春风',mark:true},{text:'吹过',mark:false},{text:'山谷',mark:true}]);
@@ -9,4 +10,7 @@ assert.deepEqual(run("keywords({type:'science',body:'完整原理',keywords:[]})
 const merged=run(`merge({items:[{id:'a',title:'old',updatedAt:'2026-01-01'}],records:[{id:'r1',date:'2026-01-01'}],lines:{intro:['local']},linesUpdatedAt:'2026-01-01'}, {items:[{id:'a',deleted:true,updatedAt:'2026-02-01'},{id:'b',updatedAt:'2026-02-01'}],records:[{id:'r2',date:'2026-02-01'}],lines:{intro:['cloud']},linesUpdatedAt:'2026-02-01'})`);
 assert.equal(merged.items.length,2);assert.equal(merged.items[0].deleted,true);assert.equal(merged.records.length,2);assert.equal(merged.lines.intro[0],'cloud');
 assert.throws(()=>vm.runInContext(`validate({items:[{id:'" onclick="bad',title:'x',type:'text',body:'x'}],records:[],lines:{intro:[],encourage:[]}})`,context));
+const shared=run(`data.items=[{id:'a',title:'Lesson',body:'Public text',type:'text',keywords:['text'],notes:'PRIVATE',recall:'PRIVATE',omissions:'PRIVATE',updatedAt:'2026-01-01'},{id:'b',classroomId:'other',title:'Another teacher'},{id:'c',deleted:true}];publicLessons()`);
+assert.equal(shared.length,1);assert.equal(shared[0].body,'Public text');assert.ok(!JSON.stringify(shared).includes('PRIVATE'));assert.ok(!Object.hasOwn(shared[0],'notes'));
 console.log('PASS: word parsing, overlapping highlights, HTML escaping, science recall, sync merge/deletion, imported ID validation');
+console.log('PASS: shared lessons exclude personal notes, other classrooms and deleted items');
